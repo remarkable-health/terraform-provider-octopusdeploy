@@ -17,6 +17,10 @@ func expandDeploymentStep(ctx context.Context, flattenedStep map[string]interfac
 	name := flattenedStep["name"].(string)
 	step := deployments.NewDeploymentStep(name)
 
+	if v, ok := flattenedStep["id"]; ok {
+		step.ID = v.(string)
+	}
+
 	// properties MUST be serialized first
 	if properties, ok := flattenedStep["properties"]; ok {
 		step.Properties = expandProperties(properties)
