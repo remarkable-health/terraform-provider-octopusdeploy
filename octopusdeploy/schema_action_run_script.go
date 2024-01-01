@@ -1,11 +1,10 @@
 package octopusdeploy
 
 import (
-	"strconv"
-
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/core"
 	"github.com/OctopusDeploy/go-octopusdeploy/v2/pkg/deployments"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
+	"strconv"
 )
 
 func addScriptFromPackageSchema(element *schema.Resource) {
@@ -69,14 +68,16 @@ func expandRunScriptAction(flattenedAction map[string]interface{}) *deployments.
 	}
 
 	if variableSubstitutionInFiles, ok := flattenedAction["variable_substitution_in_files"]; ok {
-		action.Properties["Octopus.Action.SubstituteInFiles.TargetFiles"] = core.NewPropertyValue(variableSubstitutionInFiles.(string), false)
-		action.Properties["Octopus.Action.SubstituteInFiles.Enabled"] = core.NewPropertyValue("True", false)
+		if convertBool(variableSubstitutionInFiles) {
+			action.Properties["Octopus.Action.SubstituteInFiles.TargetFiles"] = core.NewPropertyValue(variableSubstitutionInFiles.(string), false)
+			action.Properties["Octopus.Action.SubstituteInFiles.Enabled"] = core.NewPropertyValue("True", false)
 
-		if len(action.Properties["Octopus.Action.EnabledFeatures"].Value) == 0 {
-			action.Properties["Octopus.Action.EnabledFeatures"] = core.NewPropertyValue("Octopus.Features.SubstituteInFiles", false)
-		} else {
-			actionProperty := action.Properties["Octopus.Action.EnabledFeatures"].Value + ",Octopus.Features.SubstituteInFiles"
-			action.Properties["Octopus.Action.EnabledFeatures"] = core.NewPropertyValue(actionProperty, false)
+			if len(action.Properties["Octopus.Action.EnabledFeatures"].Value) == 0 {
+				action.Properties["Octopus.Action.EnabledFeatures"] = core.NewPropertyValue("Octopus.Features.SubstituteInFiles", false)
+			} else {
+				actionProperty := action.Properties["Octopus.Action.EnabledFeatures"].Value + ",Octopus.Features.SubstituteInFiles"
+				action.Properties["Octopus.Action.EnabledFeatures"] = core.NewPropertyValue(actionProperty, false)
+			}
 		}
 	}
 
@@ -132,7 +133,9 @@ func flattenRunScriptAction(action *deployments.DeploymentAction) map[string]int
 	}
 
 	if v, ok := action.Properties["Octopus.Action.SubstituteInFiles.TargetFiles"]; ok {
-		flattenedAction["variable_substitution_in_files"] = v.Value
+		flattenedAction["variable_substitution_in_files"] = convertBool(v.Value)
+	} else {
+		flattenedAction["variable_substitution_in_files"] = "False"
 	}
 
 	return flattenedAction
@@ -165,4 +168,18 @@ func getRunScriptActionSchema() *schema.Schema {
 	}
 
 	return actionSchema
+}
+
+func convertBool(iValue interface{}) bool {
+	switch v := iValue.(type) {
+	case bool:
+		return v
+	case string:
+		if parsed, err := strconv.ParseBool(v); err == nil {
+			return parsed
+		}
+		return false
+	default:
+		return false
+	}
 }
